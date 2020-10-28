@@ -1,9 +1,9 @@
 #!/bin/sh
 
-
-echo " "
+#echo " "
 #echo "STEP 000 ===== Deleting project demo-trn"
 #oc delete project demo-trn
+#sleep 5
 
 echo " "
 echo "STEP 001 ===== Creating project demo-trn"

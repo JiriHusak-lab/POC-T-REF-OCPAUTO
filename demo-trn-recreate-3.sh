@@ -5,14 +5,14 @@ KAFKAPOD=`oc get pods | grep -v apache-kafka-1-deploy | grep apache-kafka-1- | a
 MONGOPOD=`oc get pods | grep -v coco | grep mongo- | awk '{print $1}'`
 
 echo " "
-echo "STEP 013 ===== Exposing services coco, wmj"
+echo "STEP 020 ===== Exposing services coco, wmj"
 oc expose svc/coco
 oc expose svc/wmj
-sleep 3
+sleep 6
 
 
 echo " "
-echo "STEP 014 ===== using curl to setup coco"
+echo "STEP 021 ===== using curl to setup coco"
 curl -X PUT -H "Content-Type: application/json" -g -d\
 "[\
 { \"role\": \"admin\", \"content_id\": \"pwhjj\", \"read\": false, \"write\": false} ,\
@@ -41,8 +41,22 @@ echo " "
 echo "STEP 101 ===== using curl to test coco setup"
 curl http://coco-demo-trn.apps-crc.testing/coco?roles=admin,worker
 
+
 echo " "
-echo "STEP 102 ===== using curl to test wmj read from mongo"
+#echo "STEP 008B ===== Copying getMongo.js file"
+#oc cp getMongo.js ${MONGOPOD}:/tmp/ 
+#oc exec -it ${MONGOPOD} -- chmod 755 /tmp/getMongo.js
+#oc exec -it ${MONGOPOD} -- mongo /tmp/getMongo.js
+
+
+echo " "
+echo "STEP 102 ===== Selecting mongo records"
+oc exec -it ${MONGOPOD} -- mongo wh-journal-docker --eval "db.getCollectionNames().join('\n')"
+oc exec -it ${MONGOPOD} -- mongo wh-journal-docker --eval "db.journalrecs.find()"
+
+
+echo " "
+echo "STEP 103 ===== using curl to test wmj read from mongo"
 curl http://wmj-demo-trn.apps-crc.testing/journal/
 echo " "
-curl http://wmj-demo-trn.apps-crc.testing/journal/?kmat=matb
+curl http://wmj-demo-trn.apps-crc.testing/journal/?kmat=matA
