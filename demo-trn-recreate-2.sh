@@ -21,7 +21,7 @@ echo "STEP 003b ===== Copying wmj sh and json files"
 oc cp wmj.json ${KAFKAPOD}:/opt/kafka -c apache-kafka
 oc cp wmj.sh ${KAFKAPOD}:/opt/kafka -c apache-kafka
 oc exec -it -c apache-kafka ${KAFKAPOD} -- chmod 755 /opt/kafka/wmj.sh
-oc exec -it -c apache-kafka ${KAFKAPOD} -- /opt/kafka/wmj.sh
+oc exec -it -c apache-kafka ${KAFKAPOD} -- /opt/kafka/wmj.sh wmj.json
 sleep 5
 
 echo " "
