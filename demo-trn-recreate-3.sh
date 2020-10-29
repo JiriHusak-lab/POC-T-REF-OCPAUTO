@@ -3,6 +3,8 @@
 oc get pods
 KAFKAPOD=`oc get pods | grep -v apache-kafka-1-deploy | grep apache-kafka-1- | awk '{print $1}'`
 MONGOPOD=`oc get pods | grep -v coco | grep mongo- | awk '{print $1}'`
+COCOMONGOPOD=`oc get pods | grep coco | grep coco-mongo- | awk '{print $1}'`
+
 
 echo " "
 echo "STEP 020 ===== Exposing services coco, wmj"
@@ -32,14 +34,57 @@ curl -X PUT -H "Content-Type: application/json" -g -d\
 { \"role\": \"admin\", \"content_id\": \"pm-personalAdministration\", \"read\": true, \"write\": true}\
 ]" http://coco-demo-trn.apps-crc.testing/coco
 
+curl -X PUT -H "Content-Type: application/json" -g -d\
+"[\
+{ \"role\": \"manager\", \"content_id\": \"pwhjj\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"manager\", \"content_id\": \"pwhjj-home\", \"read\": true, \"write\": false},\
+{ \"role\": \"manager\", \"content_id\": \"pwhjj-personalAdministration\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"manager\", \"content_id\": \"pwhjj-agendaAdministration\", \"read\": true, \"write\": true},\
+{ \"role\": \"manager\", \"content_id\": \"pwhjj-userAdministration\", \"read\": true, \"write\": true},\
+{ \"role\": \"manager\", \"content_id\": \"pwhjj-roleAdministration\", \"read\": true, \"write\": true},\
+{ \"role\": \"manager\", \"content_id\": \"rm\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"manager\", \"content_id\": \"rm-home\", \"read\": true, \"write\": false},\
+{ \"role\": \"manager\", \"content_id\": \"rm-personalAdministration\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"manager\", \"content_id\": \"sm\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"manager\", \"content_id\": \"sm-home\", \"read\": true, \"write\": false} ,\
+{ \"role\": \"manager\", \"content_id\": \"sm-personalAdministration\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"manager\", \"content_id\": \"pm\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"manager\", \"content_id\": \"pm-home\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"manager\", \"content_id\": \"pm-personalAdministration\", \"read\": true, \"write\": true}\
+]" http://coco-demo-trn.apps-crc.testing/coco
+
+curl -X PUT -H "Content-Type: application/json" -g -d\
+"[\
+{ \"role\": \"worker\", \"content_id\": \"pwhjj\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"worker\", \"content_id\": \"pwhjj-home\", \"read\": true, \"write\": false},\
+{ \"role\": \"worker\", \"content_id\": \"pwhjj-personalAdministration\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"worker\", \"content_id\": \"pwhjj-agendaAdministration\", \"read\": true, \"write\": true},\
+{ \"role\": \"worker\", \"content_id\": \"pwhjj-userAdministration\", \"read\": true, \"write\": true},\
+{ \"role\": \"worker\", \"content_id\": \"pwhjj-roleAdministration\", \"read\": true, \"write\": true},\
+{ \"role\": \"worker\", \"content_id\": \"rm\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"worker\", \"content_id\": \"rm-home\", \"read\": true, \"write\": false},\
+{ \"role\": \"worker\", \"content_id\": \"rm-personalAdministration\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"worker\", \"content_id\": \"sm\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"worker\", \"content_id\": \"sm-home\", \"read\": true, \"write\": false} ,\
+{ \"role\": \"worker\", \"content_id\": \"sm-personalAdministration\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"worker\", \"content_id\": \"pm\", \"read\": false, \"write\": false} ,\
+{ \"role\": \"worker\", \"content_id\": \"pm-home\", \"read\": true, \"write\": true} ,\
+{ \"role\": \"worker\", \"content_id\": \"pm-personalAdministration\", \"read\": true, \"write\": true}\
+]" http://coco-demo-trn.apps-crc.testing/coco
+
 
 
 echo " "
 echo "STEP 100 ===== SANITY TESTS"
 
 echo " "
-echo "STEP 101 ===== using curl to test coco setup"
+echo "STEP 101a ===== using curl to test coco setup"
 curl http://coco-demo-trn.apps-crc.testing/coco?roles=admin,worker
+
+echo " "
+echo "STEP 101b ===== Selecting COCO MONGO records"
+oc exec -it ${COCOMONGOPOD} -- mongo coco --eval "db.getCollectionNames().join('\n')"
+oc exec -it ${COCOMONGOPOD} -- mongo coco --eval "db.rights.find()"
 
 
 echo " "
@@ -50,13 +95,13 @@ echo " "
 
 
 echo " "
-echo "STEP 102 ===== Selecting mongo records"
+echo "STEP 102 ===== Selecting WMJ MONGO records"
 oc exec -it ${MONGOPOD} -- mongo wh-journal-docker --eval "db.getCollectionNames().join('\n')"
 oc exec -it ${MONGOPOD} -- mongo wh-journal-docker --eval "db.journalrecs.find()"
 
 
 echo " "
-echo "STEP 103 ===== using curl to test wmj read from mongo"
+echo "STEP 103 ===== using curl to test WMJ read from mongo"
 curl http://wmj-demo-trn.apps-crc.testing/journal/
 echo " "
 curl http://wmj-demo-trn.apps-crc.testing/journal/?kmat=matA

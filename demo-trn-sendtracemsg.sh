@@ -45,11 +45,13 @@ sleep 5
 sleep 2
 
 echo " "
-echo "STEP 005 ===== Selecting mongo records"
+echo "STEP 005 ===== Selecting WMJ MONGO records"
 oc exec -it ${MONGOPOD} -- mongo wh-journal-docker --eval "db.getCollectionNames().join('\n')"
+echo " "
 oc exec -it ${MONGOPOD} -- mongo wh-journal-docker --eval "db.journalrecs.find()"
 
 
 echo " "
-echo "STEP 006 ===== using curl to test wmj read from mongo"
+echo "STEP 006 ===== using curl to test WMJ read from MONGO"
 curl http://wmj-demo-trn.apps-crc.testing/journal/
+echo " "
