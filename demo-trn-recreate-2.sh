@@ -2,11 +2,25 @@
 
 oc get pods
 KAFKAPOD=`oc get pods | grep -v apache-kafka-1-deploy | grep apache-kafka-1- | awk '{print $1}'`
+KAFKAPODSTATUS=`oc get pods | grep -v apache-kafka-1-deploy | grep apache-kafka-1- | awk '{print $3}'`
 MONGOPOD=`oc get pods | grep -v coco | grep mongo- | awk '{print $1}'`
+MONGOPODSTATUS=`oc get pods | grep -v coco | grep mongo- | awk '{print $3}'`
 
 echo " "
-echo "STEP 001a ===== Apache-kafka POD: ${KAFKAPOD} ==============================="
-echo "STEP 001b ===== MONGO POD: ${MONGOPOD} ==============================="
+echo "STEP 001a ===== Apache-kafka POD: ${KAFKAPOD} status: ${KAFKAPODSTATUS}==============================="
+echo "STEP 001b ===== MONGO POD: ${MONGOPOD} status: ${MONGOPODSTATUS}==============================="
+
+if [ "${KAFKAPODSTATUS}" != "Running" ]
+then
+	echo "${KAFKAPOD} is not in status running"
+	exit
+fi
+
+if [ "${MONGOPODSTATUS}" != "Running" ]
+then
+	echo "${MONGOPOD} is not in status running"
+	exit
+fi
 
 echo " "
 echo "STEP 002 ===== Listing kafka topics"
@@ -22,14 +36,17 @@ echo " "
 echo "STEP 003a ===== Creating wmj-trace.json file"
 #Wed Oct 28 18:44:01 CET 2020
 #MDEN=`date | awk '{print $3}'`
-MDEN=`date +"%-d"`
-MCAS=`date | awk '{print $4}' | awk -F: '{print $1 $2}'`
-MCASSEC=`date | awk '{print $4}'`
 MROK=`date | awk '{print $6}'`
 MMES=`date +"%-m"`
-#MMIN=`date | awk '{print $4}' | awk -F: '{print $2}'`
+MDEN=`date +"%-d"`
+MHOD=`date +"%-H"`
 MMINRAW=`date +"%-M"`
 MMIN=`expr ${MMINRAW} + 1`
+MSEC=`date +"%-S"`
+MCAS=`echo "${MHOD}${MMIN}"`
+#MCASSEC=`echo "${MHOD}${MMIN}${MSEC}"`
+#MCAS=`date | awk '{print $4}' | awk -F: '{print $1 $2}'`
+MCASSEC=`date | awk '{print $4}'`
 
 echo "{ \"id\":${MDEN}${MCAS}, \"kmat\": \"matA\", \"mvm1\": \"wh1\", \"mvm2\": \"wh2\", \"mnozstvi\": ${MMIN},  \"hmotnost\": ${MCAS}, \"timestamp\":\"${MROK}-${MMES}-${MDEN}T${MCASSEC}.127z\"}" >./wmj-trace.json
 #echo "{ \"id\":1, \"kmat\": \"matA\", \"mvm1\": \"wh1\", \"mvm2\": \"wh2\", \"mnozstvi\": 50,  \"hmotnost\": 200, \"timestamp\":\"2020-10-20T09:28:00.127Z\"}"

@@ -17,18 +17,22 @@ echo " "
 echo "STEP 003a ===== Creating wmj-trace.json file"
 #Wed Oct 28 18:44:01 CET 2020
 #MDEN=`date | awk '{print $3}'`
-MDEN=`date +"%-d"`
-MCAS=`date | awk '{print $4}' | awk -F: '{print $1 $2}'`
-MCASSEC=`date | awk '{print $4}'`
 MROK=`date | awk '{print $6}'`
 MMES=`date +"%-m"`
-#MMIN=`date | awk '{print $4}' | awk -F: '{print $2}'`
+MDEN=`date +"%-d"`
+MHOD=`date +"%-H"`
 MMINRAW=`date +"%-M"`
 MMIN=`expr ${MMINRAW} + 1`
+MSEC=`date +"%-S"`
+MCAS=`echo "${MHOD}${MMIN}"`
+#MCASSEC=`echo "${MHOD}${MMIN}${MSEC}"`
+#MCAS=`date | awk '{print $4}' | awk -F: '{print $1 $2}'`
+MCASSEC=`date | awk '{print $4}'`
 
 echo "{ \"id\":${MDEN}${MCAS}, \"kmat\": \"matA\", \"mvm1\": \"wh1\", \"mvm2\": \"wh2\", \"mnozstvi\": ${MMIN},  \"hmotnost\": ${MCAS}, \"timestamp\":\"${MROK}-${MMES}-${MDEN}T${MCASSEC}.127z\"}" >./wmj-trace.json
 #echo "{ \"id\":1, \"kmat\": \"matA\", \"mvm1\": \"wh1\", \"mvm2\": \"wh2\", \"mnozstvi\": 50,  \"hmotnost\": 200, \"timestamp\":\"2020-10-20T09:28:00.127Z\"}"
 cat ./wmj-trace.json
+exit
 
 echo " "
 echo "STEP 003b ===== Copying wmj sh and json files"

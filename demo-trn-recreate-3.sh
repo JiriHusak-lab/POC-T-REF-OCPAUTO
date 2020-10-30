@@ -2,8 +2,36 @@
 
 oc get pods
 KAFKAPOD=`oc get pods | grep -v apache-kafka-1-deploy | grep apache-kafka-1- | awk '{print $1}'`
+KAFKAPODSTATUS=`oc get pods | grep -v apache-kafka-1-deploy | grep apache-kafka-1- | awk '{print $3}'`
+
 MONGOPOD=`oc get pods | grep -v coco | grep mongo- | awk '{print $1}'`
+MONGOPODSTATUS=`oc get pods | grep -v coco | grep mongo- | awk '{print $3}'`
+
 COCOMONGOPOD=`oc get pods | grep coco | grep coco-mongo- | awk '{print $1}'`
+COCOMONGOPODSTATUS=`oc get pods | grep coco | grep coco-mongo- | awk '{print $3}'`
+
+WMJPOD=`oc get pods | grep wmj- | grep -v deploy | grep -v build | grep wmj- | awk '{print $1}'`
+WMJPODSTATUS=`oc get pods | grep wmj- | grep -v deploy | grep -v build | grep wmj- | awk '{print $3}'`
+
+COCOPOD=`oc get pods | grep coco- | grep -v deploy | grep -v build | grep -v mongo | grep coco- | awk '{print $1}'`
+COCOPODSTATUS=`oc get pods | grep coco- | grep -v deploy | grep -v build | grep -v mongo | grep coco- | awk '{print $3}'`
+
+echo " "
+echo "STEP 001b ===== MONGO POD: ${MONGOPOD} status: ${MONGOPODSTATUS}==============================="
+echo "STEP 001b ===== WMJ POD: ${WMJPOD} status: ${WMJPODSTATUS}==============================="
+echo "STEP 001b ===== COCO POD: ${COCOPOD} status: ${COCOPODSTATUS}==============================="
+echo "STEP 001b ===== COCOMONGO POD: ${COCOMONGOPOD} status: ${COCOMONGOPODSTATUS}==============================="
+
+if [ "${WMJPODSTATUS}" != "Running" ]
+then
+	echo "${WMJPOD} is not in status running"
+	exit
+fi
+if [ "${COCOPODSTATUS}" != "Running" ]
+then
+	echo "${COCOPOD} is not in status running"
+	exit
+fi
 
 
 echo " "
