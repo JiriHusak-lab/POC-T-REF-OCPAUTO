@@ -39,7 +39,7 @@ then
 	--from-literal VUE_APP_LOGIN_URL=http://apigw-demo-trn.apps-crc.testing/login \
 	--from-literal VUE_APP_JOURNAL_LIMIT=20 \
 	--from-literal VUE_APP_JOURNAL_URL=http://wmj-demo-trn.apps-crc.testing/journal \
-	--from-literal VUE_APP_JOURNAL_FILTERS_URL=http://wmj-demo-trn.apps-crc.testingi/initialjournalFilters \
+	--from-literal VUE_APP_JOURNAL_FILTERS_URL=http://wmj-demo-trn.apps-crc.testing/initialjournalFilters \
 	--from-literal VUE_APP_MATERIAL_URL=http://mms-demo-trn.apps-crc.testing/Materials/mms \
 	--from-literal VUE_APP_MATERIAL_MVMS=http://mms-demo-trn.apps-crc.testing/mvms/listall \
 	--from-literal VUE_APP_COCO_URL=http://coco-demo-trn.apps-crc.testing/coco
