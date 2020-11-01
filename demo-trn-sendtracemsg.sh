@@ -55,6 +55,13 @@ echo "{ \"id\":${MDEN}${MCAS}, \"kmat\": \"matA\", \"mvm1\": \"wh1\", \"mvm2\": 
 #echo "{ \"id\":1, \"kmat\": \"matA\", \"mvm1\": \"wh1\", \"mvm2\": \"wh2\", \"mnozstvi\": 50,  \"hmotnost\": 200, \"timestamp\":\"2020-10-20T09:28:00.127Z\"}"
 cat ./wmj-trace.json
 
+echo "MMS PUT (cmd !!!)"
+#curl PUT  -H "Content-Type: application/json" -H "ibm-sec-token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlcyI6WyJtYW5hZ2VyIl0sImlhdCI6MTU3OTcwMjA1MCwiZXhwIjoxNTc5Nzg4NDUwLCJpc3MiOiJhcGlndyIsInN1YiI6ImphbmtvQG9rLm9rIn0.wzmu4qhXSNEYxC3VGzTpxYRAEG7S3f9DlA5oKAsB5UuiYhlDekXwtqbJmR7roCHbzbM4I8GcnHr-cWAxhHhSmA" -g -d "[{\"kmat\":\"202001221604\", \"mvm\":\"wh18\",\"mnozstvi\":80,\"hmotnost\":1200}]"  http://mms-demo-trn.apps-crc.testing/Materials/mms
+echo curl -X PUT  -H "Content-Type: application/json"  -g -d "[{\"kmat\":\"${MCAS}\", \"mvm\":\"wh18\",\"mnozstvi\":${MMIN},\"hmotnost\":${MDEN}${MCAS}}]"  http://mms-demo-trn.apps-crc.testing/Materials/mms
+curl -X PUT  -H "Content-Type: application/json"  -g -d "[{\"kmat\":\"${MCAS}\", \"mvm\":\"mmswh18\",\"mnozstvi\":${MMIN},\"hmotnost\":${MDEN}${MCAS}}]"  http://mms-demo-trn.apps-crc.testing/Materials/mms
+#curl -X PUT -d 'kmat=202001140929&mvm=wh8&mnozstvi=50&hmotnost=99' http://mms-demo-trn.apps-crc.testing/Materials/mms
+
+
 echo " "
 echo "STEP 003b ===== Copying wmj sh and json files"
 oc cp wmj-trace.json ${KAFKAPOD}:/opt/kafka -c apache-kafka
