@@ -18,8 +18,11 @@ fi
 PROJECT=unknown
 RECREATE=false
 RECONFIG=false
+DOCONFIG=false
 REBUILD=false
+TEST=false
 SEEBUILDLOG=true
+REPO_BRANCH=master
 APP=unknown
 APP_DEPEND=unknown
 SLEEPSEC=1
@@ -54,6 +57,11 @@ do
 			APP_DEPEND=`eval echo "\\${$i}"`
 			echo "APP_DEPEND set to ${APP_DEPEND}"
 			;;
+		-repobranch)
+			i=$(( i+1 ))
+			REPO_BRANCH=`eval echo "\\${$i}"`
+			echo "REPO_BRANCH set to ${REPO_BRANCH}"
+			;;
 		-recreate)
 			RECREATE=true
 			echo "RECREATE set to ${RECREATE}"
@@ -61,6 +69,10 @@ do
 		-rebuild)
 			REBUILD=true
 			echo "REBUILD set to ${REBUILD}"
+			;;
+		-test)
+			TEST=true
+			echo "TEST set to ${TEST}"
 			;;
 		-reconfig)
 			RECONFIG=true
@@ -83,13 +95,19 @@ do
 			echo " -rebuild                 -- rebuild/redeploy app"
 			echo " -reconfig                -- just configure deployed app"
 			echo " -buildlog                -- display build log and wait"
+			echo " -repobranch              -- Repo branch used - Default is master"
 			echo " -nobuildlog              -- does not display build log and doesnt wait"
 			echo " --help"
 			echo " "
 			echo "example:"
-			echo "${0} -app rds-bff -app-depend apache-kafka -recreate -project demo-rds"
-			echo "${0} -app vuejs -recreate -project demo-trn"
-			echo "${0} -app mms -recreate -project demo-trn"
+			echo "DEMO-RDS:"
+			echo "1) ${0} -app rds-bs -app-depend apache-kafka -recreate -project demo-rds"
+			echo "2) ${0} -app rds-bff -app-depend apache-kafka -recreate -project demo-rds"
+			echo "3) ${0} -app rds-fe -recreate -project demo-rds -repobranch devel_ibm_liptajova"
+			echo " "
+			echo "DEMO-TRN:"
+			echo "3} ${0} -app mms -recreate -project demo-trn"
+			echo "4} ${0} -app vuejs -recreate -project demo-trn"
 
 			exit
 			;;
@@ -107,9 +125,11 @@ echo "PROJECT:${PROJECT}"
 echo "RECREATE:${RECREATE}"
 echo "RECONFIG:${RECONFIG}"
 echo "REBUILD:${REBUILD}"
+echo "TEST:${TEST}"
 echo "SEEBUILDLOG:${SEEBUILDLOG}"
 echo "APP:${APP}"
 echo "APP_DEPEND:${APP_DEPEND}"
+echo "REPO_BRANCH:${REPO_BRANCH}"
 echo "SLEEPSEC:${SLEEPSEC}"
 
 
@@ -169,16 +189,29 @@ then
 	echo " "
 	echo "STEP 004 [===== NEW-APP ${APP} APP ] **********************************************************************************************"
 	case ${APP} in
-		rds-bff)
-			echo "oc new-app git@192.168.224.125:jkulich/adis-2.0-poc-rds-bff.git  --source-secret repo-at-gitlab --name ${APP}  -e KAFKA_HOST=apache-kafka -e KAFKA_PORT=9092 -e KAFKA_CLIENT_ID=rds-bff KAFKA_GROUP_ID=RDS-DS KAFKA_TOPIC=DS_EVENT_LOG --strategy=docker"
-			oc new-app git@192.168.224.125:jkulich/adis-2.0-poc-rds-bff.git  --source-secret repo-at-gitlab --name ${APP}  -e KAFKA_HOST=apache-kafka -e KAFKA_PORT=9092 -e KAFKA_CLIENT_ID=rds-bff KAFKA_GROUP_ID=RDS-DS KAFKA_TOPIC=DS_EVENT_LOG --strategy=docker
+		rds-bs)
+			oc new-app git@192.168.224.125:jkulich/adis-2.0-poc-${APP}.git  --source-secret repo-at-gitlab --name ${APP}  -e KAFKA_HOST=apache-kafka -e KAFKA_PORT=9092 -e KAFKA_CLIENT_ID=rds-bff KAFKA_TOPIC_RDS_BFF2BS=RDS_BFF2BS --strategy=docker
 			res=$?
 			break
 			;;
+		rds-bff)
+			oc new-app git@192.168.224.125:jkulich/adis-2.0-poc-${APP}.git  --source-secret repo-at-gitlab --name ${APP}  -e KAFKA_HOST=apache-kafka -e KAFKA_PORT=9092 -e KAFKA_CLIENT_ID=rds-bff KAFKA_TOPIC_RDS_BFF2BS=RDS_BFF2BS KAFKA_TOPIC_DS_EVENT_LOG=DS_EVENT_LOG --strategy=docker
+			res=$?
+			break
+			;;
+		rds-fe)
+			echo oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --strategy=docker
+			oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --strategy=docker 
+			res=$?
+			DOCONFIG=true
+			break
+			;;
+#DEMO-TRN
 		vuejs)
 			echo "oc new-app --name vuejs https://github.com/jpiovar/poc-tz --strategy=docker"
 			oc new-app --name vuejs https://github.com/jpiovar/poc-tz --strategy=docker
 			res=$?
+			DOCONFIG=true
 			break
 			;;
 		mms)
@@ -278,7 +311,7 @@ then
 
 	case ${APP} in
 		rds-bff)
-			curl http://${APP}-demo-rds.apps-crc.testing/ping
+			curl http://${APP}-demo-rds.apps-crc.testing/ping 2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
 			res=$?
 			break
 			;;
@@ -289,8 +322,9 @@ then
 	esac
 fi
 
-if [ "$1" == "config" ]
+if [ "${RECONFIG}" == "true" ]
 then
+	echo "STEP 008 [===== ${APP} CONFIG SECTION ] *******************************************************************************************"
 	if [ "${APPPODSTATUS}" != "Running" ]
 	then
 		echo "${APPPOD} is not in status running"
@@ -302,7 +336,7 @@ then
 		vuejs)
 
 			#	--from-literal VUE_APP_LOGIN_URL=https://xc4ezcdtcc4z247-gateway-api-poc.eu-de.mybluemix.net/login  \
-			oc create configmap vuejs-config \
+			oc create configmap ${APP}-config \
 			--from-literal VUE_APP_TITLE='POC'  \
 			--from-literal VUE_APP_AUTHOR='IBM' \
 			--from-literal VUE_APP_LOGIN_URL=http://apigw-demo-trn.apps-crc.testing/login \
@@ -314,6 +348,28 @@ then
 			--from-literal VUE_APP_COCO_URL=http://coco-demo-trn.apps-crc.testing/coco
 
 			#	--from-literal VUE_APP_COCO_URL=http://apigw-demo-trn.apps-crc.testing/gateway/coco
+			res=$?
+			break
+			;;
+		rds-fe)
+			echo "     Configuring rds-fe"
+
+			oc delete route rds-fe-dev
+			oc delete route rds-fe-mock
+
+			oc delete service rds-fe-mock
+			oc delete service rds-fe-dev
+
+			oc create -f rds-fe-mock.yaml
+			oc create -f rds-fe-dev.yaml
+
+			oc expose svc/rds-fe-mock
+			oc expose svc/rds-fe-dev
+
+			#oc create configmap ${APP}-config \
+			#--from-literal BE_ORIGIN='' \
+			#--from-literal BE_INITIAL_END_POINT=http://rds-fe-demo-rds.apps-crc.testing:3000/initial \
+			#--from-literal BE_ADIS_VERSION_END_POINT=http://rds-fe-demo-rds.apps-crc.testing:3000/adisVersion
 			res=$?
 			break
 			;;
@@ -330,4 +386,33 @@ then
 	oc set env deployment/${APP} --from configmap/${APP}-config
 
 	oc expose svc/${APP}
+fi
+
+if [ "${TEST}" == "true" -o "${ONLYTEST}" == "true" ]
+then
+	echo "STEP 009 [===== ${APP} TEST   SECTION ] *******************************************************************************************"
+	if [ "${APPPODSTATUS}" != "Running" ]
+	then
+		echo "${APPPOD} is not in status running"
+		exit
+	fi
+
+	case ${APP} in
+		rds-bff)
+			echo "     Testing ${APP}"
+			curl  http://rds-bff-demo-rds.apps-crc.testing/ping  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
+			echo " "
+			echo " "
+			curl  http://rds-bff-demo-rds.apps-crc.testing/frontend-mocks/initial/  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
+			echo " "
+			echo " "
+			curl -X GET "http://rds-bff-demo-rds.apps-crc.testing/frontend-mocks/dataTableContent" -H  "accept: */*"  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
+
+			break
+			;;
+		*)
+			echo "     ${APP} : TEST command(s) not defined! "
+			exit
+			;;
+	esac
 fi
