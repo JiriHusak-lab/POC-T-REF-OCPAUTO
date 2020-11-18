@@ -11,7 +11,7 @@ spec:
   selector:
     deployment: rds-fe
   ports:
-    - name: 4200-tcp
+    - name: 3000-tcp
       protocol: TCP
       port: 3000
       targetPort: 3000

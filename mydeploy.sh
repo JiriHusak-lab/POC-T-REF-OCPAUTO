@@ -93,6 +93,7 @@ do
 			echo " -app-depend appname      -- set name of application which is prerequisite"
 			echo " -recreate                -- delete app and build/deploy new one"
 			echo " -rebuild                 -- rebuild/redeploy app"
+			echo " -test                    -- rebuild/redeploy app"
 			echo " -reconfig                -- just configure deployed app"
 			echo " -buildlog                -- display build log and wait"
 			echo " -repobranch              -- Repo branch used - Default is master"
@@ -101,13 +102,17 @@ do
 			echo " "
 			echo "example:"
 			echo "DEMO-RDS:"
-			echo "1) ${0} -app rds-bs -app-depend apache-kafka -recreate -project demo-rds"
-			echo "2) ${0} -app rds-bff -app-depend apache-kafka -recreate -project demo-rds"
-			echo "3) ${0} -app rds-fe -recreate -project demo-rds -repobranch devel_ibm_liptajova"
+			echo "1  BS RECREATE) ${0} -app rds-bs -app-depend apache-kafka -recreate -project demo-rds"
+			echo "2a BFF RECREATE) ${0} -app rds-bff -app-depend apache-kafka -recreate -test -project demo-rds"
+			echo "2b BFF REBUILD) ${0} -app rds-bff -app-depend apache-kafka -rebuild -test -project demo-rds"
+			echo "2c BFF TEST) ${0} -app rds-bff -test -project demo-rds"
+			echo "3a FE RECREATE) ${0} -app rds-fe -recreate -project demo-rds -repobranch devel_ibm_liptajova"
+			echo "3b FE REBUILD) ${0} -app rds-fe -rebuild -project demo-rds -repobranch devel_ibm_liptajova"
+			echo "3c FE RECONFIG) ${0} -app rds-fe -reconfig -project demo-rds"
 			echo " "
 			echo "DEMO-TRN:"
-			echo "3} ${0} -app mms -recreate -project demo-trn"
-			echo "4} ${0} -app vuejs -recreate -project demo-trn"
+			echo "3  MMS RECREATE) ${0} -app mms -recreate -project demo-trn"
+			echo "4  VUEJS RECREATE) ${0} -app vuejs -recreate -project demo-trn"
 
 			exit
 			;;
@@ -170,7 +175,7 @@ fi
 sleep ${SLEEPSEC}
 
 echo " "
-echo "STEP 002 [===== CHECK IF ${APP} POD IS RUNNING] ***********************************************************************************"
+echo "STEP 002 [===== CHECK IF ${APP} POD IS RUNNING] *******************************************************************************************"
 PODSTR="${APP}-"
 echo "PODSTR:${PODSTR}"
 APPPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $1}'`
@@ -187,7 +192,7 @@ then
 	sleep 5
 
 	echo " "
-	echo "STEP 004 [===== NEW-APP ${APP} APP ] **********************************************************************************************"
+	echo "STEP 004a [===== NEW-APP ${APP} APP ] *********************************************************************************************"
 	case ${APP} in
 		rds-bs)
 			oc new-app git@192.168.224.125:jkulich/adis-2.0-poc-${APP}.git  --source-secret repo-at-gitlab --name ${APP}  -e KAFKA_HOST=apache-kafka -e KAFKA_PORT=9092 -e KAFKA_CLIENT_ID=rds-bff KAFKA_TOPIC_RDS_BFF2BS=RDS_BFF2BS --strategy=docker
@@ -201,7 +206,7 @@ then
 			;;
 		rds-fe)
 			echo oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --strategy=docker
-			oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --strategy=docker 
+			oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --build-env BUILDMODE=mock -e BUILDMODEENV=mocke --strategy=docker 
 			res=$?
 			DOCONFIG=true
 			break
@@ -230,16 +235,41 @@ then
 		echo "ERROR $?"
 		exit
 	fi
+fi
+
+
+if [ "${REBUILD}" == "true" ]
+then
+	echo "STEP 004b [===== ${APP} REBUILD SECTION ] *******************************************************************************************"
+	if [ "${APPPODSTATUS}" != "Running" ]
+	then
+		echo "${APPPOD} is not in status running"
+		exit
+	fi
+
+	case ${APP} in
+		*)
+			echo "oc start-build ${APP}"
+			oc start-build ${APP}
+			break
+			;;
+	esac
+fi
+
+if [ "${RECREATE}" == "true" -o "${REBUILD}" == "true" ]
+then
 	sleep 5
 
 	echo " "
-	echo "STEP 005 [===== ${APP} BUILD  ] ***************************************************************************************************"
-	PODSTR="${APP}-1-build"
+	echo "STEP 005 [===== ${APP} BUILD LOG ] ************************************************************************************************"
+	#PODSTR="${APP}-1-build"
+	PODSTR="${APP}"
 	i=0
 	while [ $i -le 10 ]
 	do
-		BUILDPOD=`oc get pods | grep ${PODSTR} | awk '{print $1}'`
-		BUILDPODSTATUS=`oc get pods | grep ${PODSTR} | awk '{print $3}' | awk -F: '{print $1}'`
+		#BUILDPOD=`oc get pods | grep ${PODSTR} | awk '{print $1}'`
+		BUILDPOD=`oc get pods | grep ${PODSTR} | grep '\-build' | grep -v Completed | awk '{print $1}'`
+		BUILDPODSTATUS=`oc get pods | grep ${PODSTR} | grep '\-build' | grep -v Completed | awk '{print $3}' | awk -F: '{print $1}'`
 		echo "     ${APP} BUILD POD: ${BUILDPOD} status: ${BUILDPODSTATUS}"
 		
 		case ${BUILDPODSTATUS} in
@@ -269,15 +299,18 @@ then
 	done
 
 	oc expose svc/${APP}
+fi
 
 
+if [ "${RECREATE}" == "true" -o "${REBUILD}" == "true" ]
+then
 	echo " "
 	echo "STEP 006 [===== ${APP} TEST STATUS ] **********************************************************************************************"
 	PODSTR="${APP}-"
 	echo "PODSTR:${PODSTR}"
 	i=0
 	sleep 5
-	while [ $i -le 5 ]
+	while [ $i -le 20 ]
 	do
 		APPPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $1}'`
 		APPPODSTATUS=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $3}'`
@@ -294,7 +327,7 @@ then
 				;;
 			ContainerCreating)
 				echo "     ${APPPOD} is ContainerCreating"
-				sleep 5
+				sleep 7
 				;;
 			*)
 				echo "     ${APPPOD} - Unknown status ${APPPODSTATUS}"
@@ -304,26 +337,17 @@ then
 		i=$(( i+1 ))
 	done
 
+	TEST=true
 	echo " "
 	echo "STEP 007 [===== ${APP} TEST CURL  ] ***********************************************************************************************"
-	oc describe build/${APP}-1 | grep Commit:
-	oc describe build/${APP}-1 | grep Author
 
-	case ${APP} in
-		rds-bff)
-			curl http://${APP}-demo-rds.apps-crc.testing/ping 2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
-			res=$?
-			break
-			;;
-		*)
-			echo "     ${APP} : test command(s) not defined! "
-			exit
-			;;
-	esac
 fi
+
 
 if [ "${RECONFIG}" == "true" ]
 then
+	echo " "
+	echo " "
 	echo "STEP 008 [===== ${APP} CONFIG SECTION ] *******************************************************************************************"
 	if [ "${APPPODSTATUS}" != "Running" ]
 	then
@@ -354,17 +378,24 @@ then
 		rds-fe)
 			echo "     Configuring rds-fe"
 
+			oc delete route rds-fe
 			oc delete route rds-fe-dev
 			oc delete route rds-fe-mock
 
+			oc delete service rds-fe
 			oc delete service rds-fe-mock
 			oc delete service rds-fe-dev
 
+			oc create -f rds-fe.yaml
 			oc create -f rds-fe-mock.yaml
-			oc create -f rds-fe-dev.yaml
+			#oc create -f rds-fe-dev.yaml
 
+			oc expose svc/rds-fe
 			oc expose svc/rds-fe-mock
-			oc expose svc/rds-fe-dev
+			#oc expose svc/rds-fe-dev
+
+			#oc exec ${APPPOD} npm run mock
+			#oc exec ${APPPOD} -- http-server -p 8080 dist/adis20poc
 
 			#oc create configmap ${APP}-config \
 			#--from-literal BE_ORIGIN='' \
@@ -390,7 +421,16 @@ fi
 
 if [ "${TEST}" == "true" -o "${ONLYTEST}" == "true" ]
 then
+	echo " "
+	echo " "
 	echo "STEP 009 [===== ${APP} TEST   SECTION ] *******************************************************************************************"
+	oc describe build ${APP} | grep Status:
+	oc describe build ${APP} | grep Started:
+	oc describe build ${APP} | grep Commit:
+	oc describe build ${APP} | grep Author
+	sleep 5
+
+
 	if [ "${APPPODSTATUS}" != "Running" ]
 	then
 		echo "${APPPOD} is not in status running"
@@ -400,10 +440,10 @@ then
 	case ${APP} in
 		rds-bff)
 			echo "     Testing ${APP}"
-			curl  http://rds-bff-demo-rds.apps-crc.testing/ping  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
+			curl http://${APP}-demo-rds.apps-crc.testing/ping 2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
 			echo " "
 			echo " "
-			curl  http://rds-bff-demo-rds.apps-crc.testing/frontend-mocks/initial/  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
+			curl http://rds-bff-demo-rds.apps-crc.testing/frontend-mocks/initial/  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
 			echo " "
 			echo " "
 			curl -X GET "http://rds-bff-demo-rds.apps-crc.testing/frontend-mocks/dataTableContent" -H  "accept: */*"  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
