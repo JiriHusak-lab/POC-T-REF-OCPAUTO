@@ -26,6 +26,7 @@ REPO_BRANCH=master
 APP=unknown
 APP_DEPEND=unknown
 SLEEPSEC=1
+GREPMINV=HAMBURGERXXL
 #i=1
 #while [ $i -le $# ]
 #do
@@ -102,17 +103,21 @@ do
 			echo " "
 			echo "example:"
 			echo "DEMO-RDS:"
-			echo "1  BS RECREATE) ${0} -app rds-bs -app-depend apache-kafka -recreate -project demo-rds"
-			echo "2a BFF RECREATE) ${0} -app rds-bff -app-depend apache-kafka -recreate -test -project demo-rds"
-			echo "2b BFF REBUILD) ${0} -app rds-bff -app-depend apache-kafka -rebuild -test -project demo-rds"
-			echo "2c BFF TEST) ${0} -app rds-bff -test -project demo-rds"
-			echo "3a FE RECREATE) ${0} -app rds-fe -recreate -project demo-rds -repobranch devel_ibm_liptajova"
-			echo "3b FE REBUILD) ${0} -app rds-fe -rebuild -project demo-rds -repobranch devel_ibm_liptajova"
-			echo "3c FE RECONFIG) ${0} -app rds-fe -reconfig -project demo-rds"
+			echo "1  BS RECREATE)       ${0} -app rds-bs -app-depend apache-kafka -recreate -project demo-rds"
+			echo "2a BFF RECREATE)      ${0} -app rds-bff -app-depend apache-kafka -recreate -test -project demo-rds"
+			echo "2b BFF REBUILD)       ${0} -app rds-bff -app-depend apache-kafka -rebuild -test -project demo-rds"
+			echo "2c BFF TEST)          ${0} -app rds-bff -test -project demo-rds"
+			echo "3a FE RECREATE)       ${0} -app rds-fe -recreate -reconfig -project demo-rds -repobranch devel"
+			echo "3b FE REBUILD)        ${0} -app rds-fe -rebuild -reconfig -project demo-rds -repobranch devel"
+			echo "3c FE RECONFIG)       ${0} -app rds-fe -reconfig -project demo-rds"
+			echo "4a FE MOCK RECREATE)  ${0} -app rds-fe-mock -recreate -reconfig -project demo-rds -repobranch devel"
+			echo "4b FE MOCK REBUILD)   ${0} -app rds-fe-mock -rebuild -reconfig -project demo-rds -repobranch devel"
+			echo "4c FE MOCK RECONFIG)  ${0} -app rds-fe-mock -reconfig -project demo-rds"
+			echo "4d FE MOCK TEST ONLY) ${0} -app rds-fe-mock -test -project demo-rds"
 			echo " "
 			echo "DEMO-TRN:"
-			echo "3  MMS RECREATE) ${0} -app mms -recreate -project demo-trn"
-			echo "4  VUEJS RECREATE) ${0} -app vuejs -recreate -project demo-trn"
+			echo "3  MMS RECREATE)      ${0} -app mms -recreate -project demo-trn"
+			echo "4  VUEJS RECREATE)    ${0} -app vuejs -recreate -project demo-trn"
 
 			exit
 			;;
@@ -137,6 +142,14 @@ echo "APP_DEPEND:${APP_DEPEND}"
 echo "REPO_BRANCH:${REPO_BRANCH}"
 echo "SLEEPSEC:${SLEEPSEC}"
 
+case ${APP} in
+	rds-fe)
+		GREPMINV=rds-fe-mock-
+		break
+		;;
+esac
+echo "GREPMINV=${GREPMINV}"
+
 
 echo " "
 echo "STEP 000b [===== SET PROJECT ]                  *************************************************************************************"
@@ -152,14 +165,14 @@ fi
 
 echo " "
 echo "STEP 000c [===== SHOW PODS ]                    *************************************************************************************"
-oc get pods
+oc get pods --sort-by=".status.startTime"
 
 
 if [ "${APP_DEPEND}" != "unknown" ]
 then
 	PODSTR="${APP_DEPEND}-"
-	PREREQPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $1}'`
-	PREREQPODSTATUS=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $3}'`
+	PREREQPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | grep -v ${GREPMINV} | awk '{print \$1}'`
+	PREREQPODSTATUS=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | grep -v ${GREPMINV} | awk '{print \$3}'`
 	sleep ${SLEEPSEC}
 
 	echo " "
@@ -178,8 +191,10 @@ echo " "
 echo "STEP 002 [===== CHECK IF ${APP} POD IS RUNNING] *******************************************************************************************"
 PODSTR="${APP}-"
 echo "PODSTR:${PODSTR}"
-APPPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $1}'`
-APPPODSTATUS=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $3}'`
+#echo "oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build |  grep -v ${GREPMINV} | awk '{print $1}'"
+APPPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build |  grep -v ${GREPMINV} | awk '{print $1}'`
+#echo "oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build |  grep -v ${GREPMINV} | awk '{print $3}'"
+APPPODSTATUS=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build |  grep -v ${GREPMINV} | awk '{print $3}'`
 echo "     ${APP} POD: ${APPPOD} status: ${APPPODSTATUS}"
 sleep ${SLEEPSEC}
 
@@ -205,8 +220,15 @@ then
 			break
 			;;
 		rds-fe)
-			echo oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --strategy=docker
-			oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --build-env BUILDMODE=mock -e BUILDMODEENV=mocke --strategy=docker 
+			echo oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --build-env BUILDMODE=prod --strategy=docker 
+			oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --build-env BUILDMODE=prod --strategy=docker 
+			res=$?
+			DOCONFIG=true
+			break
+			;;
+		rds-fe-mock)
+			echo oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --build-env BUILDMODE=mock --strategy=docker 
+			oc new-app git@192.168.224.125:/jkulich/adis-2.0-poc-FE.git#${REPO_BRANCH} --context-dir=adis20poc --source-secret repo-at-gitlab --name ${APP} --build-env BUILDMODE=mock --strategy=docker 
 			res=$?
 			DOCONFIG=true
 			break
@@ -263,13 +285,13 @@ then
 	echo " "
 	echo "STEP 005 [===== ${APP} BUILD LOG ] ************************************************************************************************"
 	#PODSTR="${APP}-1-build"
-	PODSTR="${APP}"
+	PODSTR="${APP}-"
 	i=0
 	while [ $i -le 10 ]
 	do
-		#BUILDPOD=`oc get pods | grep ${PODSTR} | awk '{print $1}'`
-		BUILDPOD=`oc get pods | grep ${PODSTR} | grep '\-build' | grep -v Completed | awk '{print $1}'`
-		BUILDPODSTATUS=`oc get pods | grep ${PODSTR} | grep '\-build' | grep -v Completed | awk '{print $3}' | awk -F: '{print $1}'`
+		#BUILDPOD=`oc get pods | grep ${PODSTR}-[0-9] | awk '{print $1}'`
+		BUILDPOD=`oc get pods --sort-by=".status.startTime" | tac | grep ${PODSTR}[0-9] | grep '\-build' | grep -v Completed | grep -m 1 ${PODSTR} | awk '{print $1}'`
+		BUILDPODSTATUS=`oc get pods --sort-by=".status.startTime" | tac | grep ${PODSTR}[0-9] | grep '\-build' | grep -v Completed | grep -m 1 ${PODSTR} | awk '{print $3}' | awk -F: '{print $1}'`
 		echo "     ${APP} BUILD POD: ${BUILDPOD} status: ${BUILDPODSTATUS}"
 		
 		case ${BUILDPODSTATUS} in
@@ -281,9 +303,9 @@ then
 				fi
 				break
 				;;
-			Init|PodInitializing)
-				echo "     ${BUILDPOD} is initializing"
-				sleep 5
+			Init|PodInitializing|Terminating)
+				echo "     ${BUILDPOD} is ${BUILDPODSTATUS}"
+				sleep 10 
 				;;
 			*)
 				echo "     ${BUILDPOD} - Unknown status ${BUILDPODSTATUS}"
@@ -305,15 +327,16 @@ fi
 if [ "${RECREATE}" == "true" -o "${REBUILD}" == "true" ]
 then
 	echo " "
-	echo "STEP 006 [===== ${APP} TEST STATUS ] **********************************************************************************************"
+	echo "STEP 006 [===== ${APP} CHECK STATUS ] **********************************************************************************************"
 	PODSTR="${APP}-"
 	echo "PODSTR:${PODSTR}"
 	i=0
 	sleep 5
 	while [ $i -le 20 ]
 	do
-		APPPOD=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $1}'`
-		APPPODSTATUS=`oc get pods | grep ${PODSTR} | grep -v deploy | grep -v build | awk '{print $3}'`
+		#oc get pods  --sort-by=".status.startTime" | tac | grep -m 1 rds-bff-
+		APPPOD=`oc get pods --sort-by=".status.startTime" | tac | grep ${PODSTR} | grep -v deploy | grep -v build |  grep -v ${GREPMINV} | grep -m 1 ${PODSTR} | awk '{print $1}'`
+		APPPODSTATUS=`oc get pods --sort-by=".status.startTime" | tac | grep ${PODSTR} | grep -v deploy | grep -v build |  grep -v ${GREPMINV} | grep -m 1 ${PODSTR} | awk '{print $3}'`
 		echo "     APP POD: ${APPPOD} status: ${APPPODSTATUS}"
 		
 		case ${APPPODSTATUS} in
@@ -339,7 +362,6 @@ then
 
 	TEST=true
 	echo " "
-	echo "STEP 007 [===== ${APP} TEST CURL  ] ***********************************************************************************************"
 
 fi
 
@@ -376,23 +398,32 @@ then
 			break
 			;;
 		rds-fe)
-			echo "     Configuring rds-fe"
+			echo "     Configuring ${APP}"
 
 			oc delete route rds-fe
-			oc delete route rds-fe-dev
-			oc delete route rds-fe-mock
 
 			oc delete service rds-fe
-			oc delete service rds-fe-mock
-			oc delete service rds-fe-dev
 
 			oc create -f rds-fe.yaml
-			oc create -f rds-fe-mock.yaml
-			#oc create -f rds-fe-dev.yaml
 
 			oc expose svc/rds-fe
+
+			break
+			;;
+		rds-fe-mock)
+			echo "     Configuring ${APP}"
+
+			oc delete route rds-fe-mock
+			oc delete route rds-fe-mock-mock
+
+			oc delete service rds-fe-mock
+			oc delete service rds-fe-mock-mock
+
+			oc create -f rds-fe-mock.yaml
+			oc create -f rds-fe-mock-mock.yaml
+
 			oc expose svc/rds-fe-mock
-			#oc expose svc/rds-fe-dev
+			oc expose svc/rds-fe-mock-mock
 
 			#oc exec ${APPPOD} npm run mock
 			#oc exec ${APPPOD} -- http-server -p 8080 dist/adis20poc
@@ -424,10 +455,12 @@ then
 	echo " "
 	echo " "
 	echo "STEP 009 [===== ${APP} TEST   SECTION ] *******************************************************************************************"
-	oc describe build ${APP} | grep Status:
-	oc describe build ${APP} | grep Started:
-	oc describe build ${APP} | grep Commit:
-	oc describe build ${APP} | grep Author
+	oc describe build ${APP} | grep Status: | uniq
+	oc describe build ${APP} | grep Started: | uniq | sort -r | grep -m 1 Started:
+	oc describe build ${APP} | grep Ref: | uniq 
+	oc describe build ${APP} | grep Commit: | uniq 
+	oc describe build ${APP} | grep Author | uniq 
+
 	sleep 5
 
 
@@ -448,6 +481,12 @@ then
 			echo " "
 			curl -X GET "http://rds-bff-demo-rds.apps-crc.testing/frontend-mocks/dataTableContent" -H  "accept: */*"  2>/dev/null |  awk -F} '{m=NF;  for(i=1;i<=m;i++) print $i "}"}' 
 
+			break
+			;;
+		rds-fe-mock)
+			echo "     Testing ${APP} MOCK SERVER"
+			curl http://rds-fe-mock-demo-rds.apps-crc.testing
+			curl http://rds-fe-mock-demo-rds.apps-crc.testing/initial
 			break
 			;;
 		*)
